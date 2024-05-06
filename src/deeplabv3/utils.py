@@ -8,10 +8,12 @@ from multiprocessing import Pool
 import torch
 import numpy as np
 import sys
+import json
 from time import time
 from sklearn.preprocessing import MinMaxScaler
-# from config import 
+from config import OUT_PATH
 from multiprocessing import cpu_count
+
 
 def _scale_image(path: str):
     img = read_image(path)
@@ -23,6 +25,15 @@ def _scale_image(path: str):
         
     return img_means
 
+def _scale_image_2(path:str):
+    img = read_image(path)
+    scaled = np.zeros(img.shape)
+    for i in range(img.shape[0]):
+        scaler = MinMaxScaler()
+        scaled[i] = scaler.fit_transform(img[i].numpy())
+
+    return np.mean(scaled, axis=(1, 2))
+
 def calc_norm_parameters(directory: str, processes: int):
     """
     Looks for a train and val folder within directory, pulls all the images from the folder
@@ -31,7 +42,7 @@ def calc_norm_parameters(directory: str, processes: int):
     directory (str): The root directory of all the images in the dataset
     processes (int): The number of multiprocessing processes to use for the functional mapping
    
-    Returns: a dictionary of channel means, std deviations, and the mean values array.
+    Returns: a tuple with dictionary of channel means and std deviations, and the mean values array.
     """
 
     if not os.path.exists(directory):
@@ -57,13 +68,13 @@ def calc_norm_parameters(directory: str, processes: int):
     mean_array = np.zeros(shape=(len(all_files), 3))
 
     pool = Pool(processes=processes)
-    results = pool.map_async(_scale_image, all_files, chunksize=chunksize)
+    results = pool.map_async(_scale_image_2, all_files, chunksize=chunksize)
     mean_array = np.array(results.get())
     
-    means = np.mean(mean_array, 0)
-    std = np.std(mean_array, 0)
+    means = list(np.mean(mean_array, 0))
+    std = list(np.std(mean_array, 0))
 
-    return {'means': means, 'std': std, 'means_array': mean_array}
+    return {'means': means, 'std': std}, mean_array
  
 def collate_fn(batch):
     """
@@ -77,7 +88,11 @@ def collate_fn(batch):
 
 if __name__ == '__main__':
     t0 = time()
-    x = calc_norm_parameters('./data/images', processes=cpu_count())
+    x, _ = calc_norm_parameters('./data/images', processes=cpu_count())
     t1 = time()
     print(x)
     print(t1-t0)
+
+    with open(os.path.join(OUT_PATH, 'scale_params/scale_params.json'), 'w') as f:
+        json.dump(x, f)
+

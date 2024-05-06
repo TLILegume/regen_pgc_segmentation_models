@@ -25,7 +25,9 @@ def create_deeplab_model(backbone: str, num_classes: int, pretrained: bool=True)
     
     model = model_backbones[backbone](weights='DEFAULT')
     model.classifier[4] = nn.Conv2d(256, num_classes, 1)
-    model.aux_classifier[4] = nn.Conv2d(256, num_classes, 1)
+    model.aux_classifier[4] = nn.Conv2d(10, num_classes, 1)
+    # model.classifier[4] = nn.LazyConv2d(num_classes, 1)
+    # model.aux_classifier[4] = nn.LazyConv2d(num_classes, 1)
     
     return model
 
@@ -45,23 +47,8 @@ if __name__ == '__main__':
     model = deeplabv3_mobilenet_v3_large(weights='DEFAULT')
     weights = DeepLabV3_MobileNet_V3_Large_Weights.DEFAULT
     transforms = weights.transforms(resize_size=None)
-    
-    img = read_image('./data/images/puppy.jpg')
-    batch = torch.stack([transforms(img)])
-    print(type(img))
-    print(img.shape)
-    model.eval()
 
-    out = model(batch)['out']
+    print(model)
+    model2 = create_deeplab_model('mobilenet_v3', 7, pretrained=True)
+    print(model2)
 
-    sem_class_to_idx = {cls: idx for (idx, cls) in enumerate(weights.meta["categories"])}
-
-    normalized_masks = torch.nn.functional.softmax(out, dim=1)
-
-    dog_and_boat_masks = [
-        normalized_masks[img_idx, sem_class_to_idx[cls]]
-        for img_idx in range(len([img]))
-        for cls in ('dog', 'boat')
-    ]
-
-    show(dog_and_boat_masks)

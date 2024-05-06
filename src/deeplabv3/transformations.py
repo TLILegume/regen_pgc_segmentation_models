@@ -6,30 +6,42 @@ import cv2
 from albumentations.pytorch import ToTensorV2
 import scipy
 
-def train_transforms():
+def train_transforms(means:list, std: list):
     """
     Returns a training dataset transformation Albumentations function
     Which performs random flips, color jitter, blurring, rotation, transposition, and distortion
     """
     transforms = A.Compose([
-    A.Flip(),
-    A.ColorJitter(),
-    A.GaussianBlur(),
-    A.SafeRotate(),
-    A.Transpose(),
-    A.GridDistortion(),
-    ToTensorV2(p=1.0)
+        A.Normalize(
+            mean=means,
+            std=std,
+            always_apply=True
+        ),
+        A.Flip(),
+        A.ColorJitter(),
+        A.GaussianBlur(),
+        A.SafeRotate(),
+        A.Transpose(),
+        A.GridDistortion(),
+        A.Resize(512, 512),
+        ToTensorV2(p=1.0)
     ])
 
     return transforms
 
-def val_transforms():
+def val_transforms(means: list, std: list):
     """
     Returns a validation dataset transformation Albumentations function
     Which performs random flips, color jitter, blurring, rotation, transposition, and distortion
     """
     transforms = A.Compose([
-    ToTensorV2(p=1.0)
+        A.Normalize(
+            mean=means,
+            std=std,
+            always_apply=True
+        ),
+        # A.Resize(512, 512),
+        ToTensorV2(p=1.0)
     ])
 
     return transforms
